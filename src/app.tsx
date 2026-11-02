@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { readNight } from './digest/read-night.js';
 import { loadConfig, type RigConfig } from './config.js';
 import { lane } from './lane.js';
 import { readStatus } from './status.js';
@@ -18,5 +19,19 @@ export function createApp(config: RigConfig = loadConfig()) {
     ),
   );
 
+  app.get('/api/digest/:night', (c) => {
+    const night = c.req.param('night');
+    if (!isDate(night)) return c.notFound();
+    const result = readNight(config.runsDir, night);
+    if (!result.found) return c.notFound();
+    return c.json({ night, rows: result.rows, badLines: result.badLines });
+  });
+
   return app;
+}
+
+function isDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
